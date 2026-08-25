@@ -1,0 +1,16 @@
+resources:
+  pipelines:
+    dim_pipeline:
+      id: d2b84c0f-d30e-49d0-a39d-f4d536c3c427
+      name: dim_pipelines
+      catalog: workspace
+      schema: mention_dw
+      photon: true
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      libraries:
+        - glob:
+            include: ./pipelines/dimensions/silver/**
+        - glob:
+            include: ./pipelines/dimensions/gold/**

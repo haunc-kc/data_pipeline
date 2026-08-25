@@ -1,0 +1,14 @@
+.databricks/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.DS_Store
+.env
+*.pem
+*.key

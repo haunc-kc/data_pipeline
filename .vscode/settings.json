@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "databricks.host": "https://8259561386387854.4.gcp.databricks.com",
+  "terminal.integrated.env.osx": {
+    "DATABRICKS_CONFIG_PROFILE": "HauNC"
+  },
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.databricks": true
+  }
+}

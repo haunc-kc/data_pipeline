@@ -1,0 +1,14 @@
+bundle:
+  name: kc_data_pipeline
+
+include:
+  - resources/*.yml
+
+targets:
+  prod:
+    mode: production
+    default: true
+    workspace:
+      host: https://8259561386387854.4.gcp.databricks.com
+      profile: HauNC
+      root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/${bundle.target}

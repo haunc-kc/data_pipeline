@@ -1,0 +1,55 @@
+name: CD - Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pipelines/**'
+      - 'resources/**'
+      - 'configs/**'
+      - 'utils/**'
+      - 'databricks.yml'
+
+jobs:
+  deploy:
+    name: Deploy & Run Pipelines
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        run: databricks bundle validate --target prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Deploy bundle
+        run: databricks bundle deploy --target prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Run dim pipeline
+        run: databricks bundle run dim_pipeline --target prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Run fact pipeline
+        run: databricks bundle run fact_pipeline --target prod
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+  notify-failure:
+    name: Notify on Failure
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Log failure
+        run: echo "Deployment failed — check workflow logs at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
