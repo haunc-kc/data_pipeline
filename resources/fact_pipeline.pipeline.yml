@@ -1,7 +1,6 @@
 resources:
   pipelines:
     fact_pipeline:
-      id: 1fd95092-21e6-44cf-8180-08efd8f0dd23
       name: fact_pipelines
       catalog: workspace
       schema: mention_dw
@@ -11,6 +10,6 @@ resources:
       continuous: false
       libraries:
         - glob:
-            include: ./pipelines/facts/silver/**
+            include: ../pipelines/facts/silver/**
         - glob:
-            include: ./pipelines/facts/gold/**
+            include: ../pipelines/facts/gold/**

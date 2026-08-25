@@ -2,7 +2,7 @@ bundle:
   name: kc_data_pipeline
 
 include:
-  - resources/*.yml
+  - resources/*.pipeline.yml
 
 targets:
   prod:
