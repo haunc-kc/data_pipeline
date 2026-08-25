@@ -1,6 +1,6 @@
 .PHONY: validate validate-dev validate-prod
 .PHONY: deploy deploy-dev deploy-prod
-.PHONY: run run-dev run-prod
+.PHONY: run-dim-dev run-dim-prod
 .PHONY: test clean
 
 # ── Validate ────────────────────────────────────────────────────────
@@ -19,14 +19,12 @@ deploy-dev:
 deploy-prod:
 	databricks bundle deploy --target prod --profile HauNC
 
-# ── Run pipelines ───────────────────────────────────────────────────
-run-dev: deploy-dev
+# ── Run dim pipeline (fact tables are written by job scripts, not SDP) ──
+run-dim-dev:
 	databricks bundle run dim_pipeline --target dev --profile HauNC
-	databricks bundle run fact_pipeline --target dev --profile HauNC
 
-run-prod: deploy-prod
+run-dim-prod:
 	databricks bundle run dim_pipeline --target prod --profile HauNC
-	databricks bundle run fact_pipeline --target prod --profile HauNC
 
 # ── Tests ───────────────────────────────────────────────────────────
 test:

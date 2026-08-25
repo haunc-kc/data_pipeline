@@ -12,11 +12,10 @@ on:
 
 env:
   DIM_PIPELINE_ID: d2b84c0f-d30e-49d0-a39d-f4d536c3c427
-  FACT_PIPELINE_ID: 1fd95092-21e6-44cf-8180-08efd8f0dd23
 
 jobs:
   deploy:
-    name: Deploy & Run Pipelines
+    name: Deploy & Run Dim Pipeline
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -37,7 +36,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
-      # ── Stop any active pipeline run before triggering a new one ──
+      # ── Stop active dim pipeline run before triggering a new one ──
       - name: Stop active dim pipeline update (if running)
         run: |
           STATE=$(databricks pipelines get $DIM_PIPELINE_ID --output json | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
@@ -57,34 +56,9 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
-      - name: Stop active fact pipeline update (if running)
-        run: |
-          STATE=$(databricks pipelines get $FACT_PIPELINE_ID --output json | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-          echo "fact_pipeline state: $STATE"
-          if [ "$STATE" = "RUNNING" ]; then
-            echo "Stopping active fact pipeline update..."
-            databricks pipelines stop $FACT_PIPELINE_ID
-            echo "Waiting for fact pipeline to become IDLE..."
-            for i in $(seq 1 30); do
-              sleep 10
-              STATE=$(databricks pipelines get $FACT_PIPELINE_ID --output json | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-              echo "  state: $STATE"
-              if [ "$STATE" = "IDLE" ]; then break; fi
-            done
-          fi
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
-      # ── Run pipelines (dim first, fact depends on dim) ────────────
+      # ── Run dim pipeline (dims must be up to date before fact jobs run) ──
       - name: Run dim pipeline
         run: databricks bundle run dim_pipeline --target prod
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
-      - name: Run fact pipeline
-        run: databricks bundle run fact_pipeline --target prod
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
