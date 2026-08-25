@@ -1,11 +1,4 @@
-from pyspark.sql import functions as F
+from utils.hashing import make_row_hash
+from utils.init_load import initial_load
 
-
-def make_row_hash(cols):
-    """MD5 hash of given columns — used for change detection in fact tables."""
-    return F.md5(F.concat_ws("|", *[
-        F.coalesce(F.col(c).cast("string"), F.lit("")) for c in cols
-    ]))
-
-
-__all__ = ["make_row_hash"]
+__all__ = ["make_row_hash", "initial_load"]
