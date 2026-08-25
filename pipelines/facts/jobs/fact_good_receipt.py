@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
@@ -8,9 +9,9 @@ from datetime import datetime, timezone
 from utils.init_load import initial_load
 
 
-# Hau test 
-CATALOG       = "workspace"
-SCHEMA        = "mention_dw"
+ 
+CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_goods_receipt_lines"
 LABEL = "Good Receipt"
 

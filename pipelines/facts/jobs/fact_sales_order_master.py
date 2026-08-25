@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
 
 from pyspark.sql import functions as F
@@ -9,8 +10,8 @@ from utils.hashing import make_row_hash
 from utils.init_load import initial_load
 
 
-CATALOG       = "workspace"
-SCHEMA        = "mention_dw"
+CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_sales_order_header"
 SOURCE_LINES_TABLE   = f"{CATALOG}.{SCHEMA}.fact_sales_order_lines"
 LABEL = "Sales Orders"
