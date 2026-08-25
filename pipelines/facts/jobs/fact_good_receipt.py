@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from utils.init_load import initial_load
 
 
- 
+
+# Hau test
 CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
 SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_goods_receipt_lines"
