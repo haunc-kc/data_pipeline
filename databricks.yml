@@ -5,9 +5,20 @@ include:
   - resources/*.pipeline.yml
 
 targets:
+
+  dev:
+    mode: development
+    workspace:
+      host: https://8259561386387854.4.gcp.databricks.com
+      root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/dev
+    variables:
+      schema: uat_mention_dw
+
   prod:
     mode: production
     default: true
     workspace:
       host: https://8259561386387854.4.gcp.databricks.com
       root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      schema: mention_dw

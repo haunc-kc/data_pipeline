@@ -13,7 +13,7 @@ on:
 
 jobs:
   validate:
-    name: Validate Bundle
+    name: Validate Bundle (dev + prod)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,13 @@ jobs:
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
-      - name: Validate bundle
+      - name: Validate dev target
+        run: databricks bundle validate --target dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Validate prod target
         run: databricks bundle validate --target prod
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}

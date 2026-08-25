@@ -1,15 +1,20 @@
+variables:
+  schema:
+    default: mention_dw
+    description: Target schema — overridden per target (uat_mention_dw for dev, mention_dw for prod)
+
 resources:
   pipelines:
     dim_pipeline:
       name: dim_pipelines
       catalog: workspace
-      schema: mention_dw
+      schema: ${var.schema}
       photon: true
       serverless: true
       channel: CURRENT
       continuous: false
       libraries:
         - glob:
-            include: ../pipelines/dimensions/silver/**
+            include: ${workspace.file_path}/pipelines/dimensions/silver/**
         - glob:
-            include: ../pipelines/dimensions/gold/**
+            include: ${workspace.file_path}/pipelines/dimensions/gold/**

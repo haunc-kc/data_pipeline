@@ -1,15 +1,20 @@
+variables:
+  schema:
+    default: mention_dw
+    description: Target schema — overridden per target (uat_mention_dw for dev, mention_dw for prod)
+
 resources:
   pipelines:
     fact_pipeline:
       name: fact_pipelines
       catalog: workspace
-      schema: mention_dw
+      schema: ${var.schema}
       photon: true
       serverless: true
       channel: CURRENT
       continuous: false
       libraries:
         - glob:
-            include: ../pipelines/facts/silver/**
+            include: ${workspace.file_path}/pipelines/facts/silver/**
         - glob:
-            include: ../pipelines/facts/gold/**
+            include: ${workspace.file_path}/pipelines/facts/gold/**
