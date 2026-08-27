@@ -1,8 +1,9 @@
-name: CD - Deploy to Production
+name: CD - Deploy to Dev
 
 on:
+  workflow_dispatch: {}   # manual trigger from the GitHub Actions tab
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - 'pipelines/**'
       - 'resources/**'
@@ -11,13 +12,13 @@ on:
       - 'databricks.yml'
 
 env:
-  DIM_PIPELINE_ID: d2b84c0f-d30e-49d0-a39d-f4d536c3c427
+  DIM_PIPELINE_ID: e95d48dd-db97-4ea3-8e54-3a88f3279578
 
 jobs:
   deploy:
-    name: Deploy & Run Dim Pipeline
+    name: Deploy & Run Dim Pipeline (Dev)
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     steps:
       - uses: actions/checkout@v4
 
@@ -25,13 +26,13 @@ jobs:
         uses: databricks/setup-cli@main
 
       - name: Validate bundle
-        run: databricks bundle validate --target prod
+        run: databricks bundle validate --target dev
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Deploy bundle
-        run: databricks bundle deploy --target prod --auto-approve
+        run: databricks bundle deploy --target dev --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -58,7 +59,7 @@ jobs:
 
       # ── Run dim pipeline (dims must be up to date before fact jobs run) ──
       - name: Run dim pipeline
-        run: databricks bundle run dim_pipeline --target prod
+        run: databricks bundle run dim_pipeline --target dev
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -70,4 +71,4 @@ jobs:
     if: failure()
     steps:
       - name: Log failure
-        run: echo "Deployment failed — check workflow logs at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: echo "Dev deployment failed — check workflow logs at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

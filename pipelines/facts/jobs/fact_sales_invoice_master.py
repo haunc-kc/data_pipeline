@@ -13,21 +13,8 @@ CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
 SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_sales_invoice_header"
 SOURCE_LINES_TABLE   = f"{CATALOG}.{SCHEMA}.fact_sales_invoice_lines"
+MASTER_TEMP_TABLE    = f"{CATALOG}.{SCHEMA}.tmp_fact_sales_invoice_master"
 LABEL = "Sales Invoices"
-
-
-def initial_load(df, table_name, cluster_cols):
-    """Write initial load with Liquid Clustering enabled."""
-    print(f"[INFO] Table {table_name} not found writing initial load with clustering ...")
-    (
-        df.write
-        .format("delta")
-        .mode("overwrite")
-        .option("overwriteSchema", "true")
-        .clusterBy(*cluster_cols)
-        .saveAsTable(table_name)
-    )
-    print(f"[DONE] Initial load written to {table_name}.")
 
 
 try:
@@ -141,6 +128,20 @@ master_df = (
         ).otherwise("Direct Business / Warehouse").alias("business_channel"),
     )
 )
+
+# Materialize: master_df feeds both header_df and lines_df below (each with its
+# own dimension joins), and each branch is scanned again during the Delta MERGE.
+# Without materializing, the rechkk/rechkp/rechk2p read+join chain gets
+# recomputed multiple times. Serverless compute doesn't support .cache()/
+# .persist(), so we write to a temp Delta table and read it back instead.
+(
+    master_df.write
+    .format("delta")
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(MASTER_TEMP_TABLE)
+)
+master_df = spark.read.table(MASTER_TEMP_TABLE)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -351,5 +352,7 @@ try:
 except Exception as e:
     print(e)
     initial_load(lines_df, SOURCE_LINES_TABLE, _LINES_CLUSTER_COLS)
+
+spark.sql(f"DROP TABLE IF EXISTS {MASTER_TEMP_TABLE}")
 
 
