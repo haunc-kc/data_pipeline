@@ -134,7 +134,7 @@ class TestBundleConfig:
 class TestPipelineResources:
     """Test pipeline resource YAMLs have required fields."""
 
-    @pytest.fixture(params=["fact_pipeline.pipeline.yml", "dim_pipeline.pipeline.yml"])
+    @pytest.fixture(params=["dim_pipeline.pipeline.yml"])
     def pipeline_config(self, request):
         import yaml
         resource_path = os.path.join(

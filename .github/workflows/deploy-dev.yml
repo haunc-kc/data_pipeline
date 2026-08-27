@@ -12,7 +12,7 @@ on:
       - 'databricks.yml'
 
 env:
-  DIM_PIPELINE_ID: e95d48dd-db97-4ea3-8e54-3a88f3279578
+  DIM_PIPELINE_ID: 195a4827-9927-49b1-a253-edde7e162817
 
 jobs:
   deploy:
