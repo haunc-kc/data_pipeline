@@ -5,14 +5,13 @@ on:
     branches: [main]
     paths:
       - 'pipelines/**'
-      - 'resources/**'
       - 'configs/**'
       - 'utils/**'
       - 'databricks.yml'
 
 env:
   DIM_PIPELINE_ID: d2b84c0f-d30e-49d0-a39d-f4d536c3c427
-
+  
 jobs:
   deploy:
     name: Deploy & Run Dim Pipeline

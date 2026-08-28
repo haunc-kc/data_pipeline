@@ -132,21 +132,31 @@ class TestBundleConfig:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestPipelineResources:
-    """Test pipeline resource YAMLs have required fields."""
+    """Test pipeline resources defined under targets.prod.resources in databricks.yml.
 
-    @pytest.fixture(params=["dim_pipeline.pipeline.yml"])
-    def pipeline_config(self, request):
+    Pipeline/job resources are only defined for the prod target — dev is
+    code-sync only, and dev pipelines/jobs are created manually in the UI.
+    """
+
+    @pytest.fixture
+    def bundle_config(self):
         import yaml
-        resource_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "resources", request.param
-        )
-        with open(resource_path) as f:
+        bundle_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "databricks.yml")
+        with open(bundle_path) as f:
             return yaml.safe_load(f)
+
+    @pytest.fixture
+    def pipeline_config(self, bundle_config):
+        return bundle_config["targets"]["prod"]
 
     def test_pipeline_resource_exists(self, pipeline_config):
         assert "resources" in pipeline_config
         assert "pipelines" in pipeline_config["resources"]
+
+    def test_dev_has_no_resources(self, bundle_config):
+        dev_target = bundle_config["targets"]["dev"]
+        assert "resources" not in dev_target, \
+            "dev target must not define pipeline/job resources (created manually in UI)"
 
     def test_catalog_is_workspace(self, pipeline_config):
         pipelines = pipeline_config["resources"]["pipelines"]

@@ -11,17 +11,17 @@
   },
   "sqltools.connections": [
     {
-      "name": "Databricks - mention_dw",
-      "driver": "Databricks",
-      "host": "8259561386387854.4.gcp.databricks.com",
-      "port": 443,
-      "path": "/sql/1.0/warehouses/8bea2497b918e5b1",
-      "token": "${env:DATABRICKS_TOKEN}",
+      "connectionMethod": "Hostname and Token",
       "catalog": "workspace",
-      "schema": "mention_dw",
-      "previewLimit": 100
+      "previewLimit": 50,
+      "driver": "Databricks",
+      "name": "databricks_prd",
+      "host": "8259561386387854.4.gcp.databricks.com",
+      "path": "/sql/1.0/warehouses/8bea2497b918e5b1",
+      "schema": "mention_dw"
     }
   ],
+  "sqltools.results.reuseTabs": "connection",
   "jupyter.interactiveWindow.cellMarker.codeRegex": "^# COMMAND ----------|^# Databricks notebook source|^(#\\s*%%|#\\s*\\<codecell\\>|#\\s*In\\[\\d*?\\]|#\\s*In\\[ \\])",
   "jupyter.interactiveWindow.cellMarker.default": "# COMMAND ----------"
 }

@@ -1,16 +1,16 @@
 bundle:
   name: kc_data_pipeline
 
-include:
-  - resources/*.pipeline.yml
-
 variables:
   pipeline_schema:
     description: Target schema for pipelines and job scripts
     default: mention_dw
 
 targets:
-
+  # Dev: mostly code-sync only. Pipelines/jobs are normally created and
+  # managed manually in the Databricks UI, pointing at the notebooks synced
+  # under this workspace path. The test_fact_job below is a TEMPORARY
+  # resource to validate bundle-managed job deployment — safe to remove.
   dev:
     mode: development
     workspace:
@@ -18,7 +18,21 @@ targets:
       root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/dev
     variables:
       pipeline_schema: uat_mention_dw
+    resources:
+      jobs:
+        test_fact_job:
+          name: "job_from_local"
+          tasks:
+            - task_key: fact_good_receipt
+              spark_python_task:
+                python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_good_receipt.py
+              environment_key: Default
+          environments:
+            - environment_key: Default
+              spec:
+                environment_version: "5"
 
+  # Prod: fully IaC-managed. Pipeline/job resources are only defined here.
   prod:
     mode: production
     default: true
@@ -27,3 +41,21 @@ targets:
       root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/${bundle.target}
     variables:
       pipeline_schema: mention_dw
+    resources:
+      pipelines:
+        dim_pipeline:
+          name: dim_pipelines
+          catalog: workspace
+          schema: ${var.pipeline_schema}
+          photon: true
+          serverless: true
+          channel: CURRENT
+          continuous: false
+          configuration:
+            PIPELINE_SCHEMA: ${var.pipeline_schema}
+            PIPELINE_CATALOG: workspace
+          libraries:
+            - glob:
+                include: ${workspace.file_path}/pipelines/dimensions/silver/**
+            - glob:
+                include: ${workspace.file_path}/pipelines/dimensions/gold/**
