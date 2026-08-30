@@ -1,6 +1,12 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
+import argparse
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--repo-root")
+_args, _ = _parser.parse_known_args()
+_repo_root = _args.repo_root or os.getcwd()
+sys.path.insert(0, _repo_root)
 
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
@@ -16,18 +22,6 @@ SOURCE_LINES_TABLE   = f"{CATALOG}.{SCHEMA}.fact_sales_invoice_lines"
 MASTER_TEMP_TABLE    = f"{CATALOG}.{SCHEMA}.tmp_fact_sales_invoice_master"
 LABEL = "Sales Invoices"
 
-
-try:
-    decision = spark.sql(f"""Select decision 
-                             From {CATALOG}.{SCHEMA}.etl_run_decision
-                             Where label = '{LABEL}'
-                             Limit 1
-                        """).first()
-    if decision and decision["decision"] == "SKIP":
-        print("[SKIP] etl_run_decision = SKIP  exiting.")
-        dbutils.notebook.exit("SKIP")
-except Exception as e:
-    print(f"[INFO] etl_run_decision not available ({e}) proceeding as RUN.")
 
 
 dateControl = spark.sql(f"""Select date_control

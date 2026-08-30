@@ -232,3 +232,30 @@ class TestJobScripts:
                 content = f.read()
             assert "import os" in content, \
                 f"{os.path.basename(fpath)}: missing import os"
+
+    def test_no_dunder_file_usage(self, job_files):
+        """__file__ is not defined when Databricks runs a script as a
+        spark_python_task (or notebook) — job scripts must not depend on it
+        for sys.path resolution. Use --repo-root (argparse) instead."""
+        for fpath in job_files:
+            with open(fpath) as f:
+                content = f.read()
+            assert "__file__" not in content, \
+                f"{os.path.basename(fpath)}: uses __file__, which is undefined " \
+                "in Databricks job task execution — use --repo-root argparse instead"
+
+    def test_all_jobs_accept_repo_root_arg(self, job_files):
+        """Every job file must accept --repo-root for sys.path resolution."""
+        for fpath in job_files:
+            with open(fpath) as f:
+                content = f.read()
+            assert '"--repo-root"' in content, \
+                f"{os.path.basename(fpath)}: missing --repo-root argparse argument"
+
+    def test_all_jobs_compile(self, job_files):
+        """Every job file must be syntactically valid Python."""
+        import py_compile
+        import tempfile
+        for fpath in job_files:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                py_compile.compile(fpath, cfile=os.path.join(tmpdir, "out.pyc"), doraise=True)

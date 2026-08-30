@@ -1,6 +1,12 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
+import argparse
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--repo-root")
+_args, _ = _parser.parse_known_args()
+_repo_root = _args.repo_root or os.getcwd()
+sys.path.insert(0, _repo_root)
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
 from delta.tables import DeltaTable
@@ -19,17 +25,6 @@ LABEL = "Good Receipt"
 _HEADER_CLUSTER_COLS = ["sk_product_id", "nk_receipt_id","sk_supplier_id","nk_document_id"]
 _HEADER_HASH_COLS = ["warehouse","position_seq_no","receipt_date","expiry_date","best_before_date","receipt_status","stock_type","quantity_received","quantity_expected","is_defective","quantity_defective","serial_number","house_serial_number","package_no","position_uuid","container_id","serial_addition_1","serial_addition_2","warranty_code","warranty_months","extended_warranty_months","extended_warranty_code","supplier_warranty_months","supplier_warranty_code","source_document_no","source_document_type","delivery_note_no","receipt_remark","goods_receipt_no","storage_location","created_by_user","dw_created_date"]
 
-try:
-    decision = spark.sql(f"""Select decision 
-                             From {CATALOG}.{SCHEMA}.etl_run_decision
-                             Where label = '{LABEL}'
-                             Limit 1
-                        """).first()
-    if decision and decision["decision"] == "SKIP":
-        print("[SKIP] etl_run_decision = SKIP  exiting.")
-        dbutils.notebook.exit("SKIP")
-except Exception as e:
-    print(f"[INFO] etl_run_decision not available ({e}) proceeding as RUN.")
 
 dateControl = spark.sql(f"""
                                 SELECT date_control

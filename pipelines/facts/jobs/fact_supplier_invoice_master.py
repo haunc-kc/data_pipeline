@@ -1,6 +1,12 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
+import argparse
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--repo-root")
+_args, _ = _parser.parse_known_args()
+_repo_root = _args.repo_root or os.getcwd()
+sys.path.insert(0, _repo_root)
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
 from delta.tables import DeltaTable
@@ -22,17 +28,6 @@ _HEADER_HASH_COLS = ["document_type","internal_document_no","entry_date","due_da
 
 _LINES_HASH_COLS = ["sk_product_id","goods_receipt_no","goods_receipt_type","line_status","quantity_billed","unit_price","line_amount","currency_code","exchange_rate","exchange_unit","is_cancelled","document_type","dw_created_date"]
 
-try:
-    decision = spark.sql(f"""Select decision 
-                             From {CATALOG}.{SCHEMA}.etl_run_decision
-                             Where label = '{LABEL}'
-                             Limit 1
-                        """).first()
-    if decision and decision["decision"] == "SKIP":
-        print("[SKIP] etl_run_decision = SKIP  exiting.")
-        dbutils.notebook.exit("SKIP")
-except Exception as e:
-    print(f"[INFO] etl_run_decision not available ({e}) proceeding as RUN.")
 
 dateControl = spark.sql(f""" SELECT date_control 
                         FROM {CATALOG}.{SCHEMA}.etl_fact_pipeline_config 

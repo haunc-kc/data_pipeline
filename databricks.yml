@@ -26,6 +26,7 @@ targets:
             - task_key: fact_good_receipt
               spark_python_task:
                 python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_good_receipt.py
+                parameters: ["--repo-root", "${workspace.file_path}"]
               environment_key: Default
           environments:
             - environment_key: Default
