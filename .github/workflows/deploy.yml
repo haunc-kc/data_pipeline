@@ -5,17 +5,16 @@ on:
     branches: [main]
     paths:
       - 'pipelines/**'
-      - 'resources/**'
       - 'configs/**'
       - 'utils/**'
       - 'databricks.yml'
 
 env:
   DIM_PIPELINE_ID: d2b84c0f-d30e-49d0-a39d-f4d536c3c427
-
+  
 jobs:
   deploy:
-    name: Deploy & Run Dim Pipeline
+    name: Deploy & Run ETL Pipeline Job
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -56,9 +55,10 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
-      # ── Run dim pipeline (dims must be up to date before fact jobs run) ──
-      - name: Run dim pipeline
-        run: databricks bundle run dim_pipeline --target prod
+      # ── Run the full ETL pipeline job (dim_pipelines, facts_job, etl_control,
+      #    inform_be, churn_risk_predict — see databricks.yml) ──
+      - name: Run etl_pipeline_job
+        run: databricks bundle run etl_pipeline_job --target prod
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

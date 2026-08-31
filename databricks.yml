@@ -1,16 +1,210 @@
 bundle:
   name: kc_data_pipeline
 
-include:
-  - resources/*.pipeline.yml
-
 variables:
   pipeline_schema:
     description: Target schema for pipelines and job scripts
     default: mention_dw
 
-targets:
+# ─────────────────────────────────────────────────────────────────────────
+# Resources are defined ONCE here and shared by both dev and prod targets.
+# Differences between environments are handled entirely by variables
+# (${var.pipeline_schema}) and bundle-relative paths (${workspace.file_path}),
+# which auto-resolve per target. This avoids copy/paste drift between the
+# two targets (typos, missing depends_on, out-of-sync task lists, etc.).
+#
+# mode: development (dev target) automatically prefixes resource names with
+# "[dev <user>]" and tags them — no extra config needed here for that.
+# ─────────────────────────────────────────────────────────────────────────
+resources:
+  pipelines:
+    dim_pipeline:
+      name: dim_pipelines
+      catalog: workspace
+      schema: ${var.pipeline_schema}
+      photon: true
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      configuration:
+        PIPELINE_SCHEMA: ${var.pipeline_schema}
+        PIPELINE_CATALOG: workspace
+      libraries:
+        - glob:
+            include: ${workspace.file_path}/pipelines/dimensions/silver/**
+        - glob:
+            include: ${workspace.file_path}/pipelines/dimensions/gold/**
 
+  jobs:
+    # Runs every script in pipelines/facts/jobs/. Independent from
+    # dim_pipeline (no dependency) — dims are refreshed separately.
+    facts_job:
+      name: "facts_job"
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: fact_good_receipt
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_good_receipt.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_product_prices
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_product_prices.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_sales_invoice_master
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_sales_invoice_master.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_sales_order_master
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_sales_order_master.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_serial_number_event
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_serial_number_event.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_supplier_invoice_master
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_supplier_invoice_master.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: purchase_order_master
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/purchase_order_master.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "5"
+
+    # Orchestrator: refreshes dimensions, runs facts, then runs ML scoring.
+    # ML scoring (churn_risk_predict) runs as a task directly in this job
+    # rather than as a separate job resource.
+    etl_pipeline_job:
+      name: "etl_pipeline_job"
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "5"
+      tasks:
+        - task_key: dim_pipelines
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.dim_pipeline.id}
+
+        - task_key: facts_job
+          run_job_task:
+            job_id: ${resources.jobs.facts_job.id}
+
+        - task_key: etl_control
+          depends_on:
+            - task_key: facts_job
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/etl_control/update_etl_control.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: inform_be
+          depends_on:
+            - task_key: facts_job
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/etl_control/inform_be.py
+          environment_key: Default
+
+        - task_key: churn_risk_predict
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/ml/jobs/churn_risk_predict.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+targets:
+  # Dev: bundle-managed dim_pipeline + jobs, used to validate changes before
+  # they're promoted to prod. Resource names get a "[dev <user>]" prefix
+  # automatically (mode: development). Resources themselves are defined once
+  # above and shared with prod — only variables/workspace differ here.
   dev:
     mode: development
     workspace:
@@ -19,9 +213,16 @@ targets:
     variables:
       pipeline_schema: uat_mention_dw
 
+  # Prod: fully IaC-managed, same resource definitions as dev (see top-level
+  # `resources:` block above). git.branch enforces that
+  # `bundle deploy --target prod` can only run when the local checkout is on
+  # `main` (blocks accidental deploys from feature branches). Override with
+  # --force if you really need to bypass this.
   prod:
     mode: production
     default: true
+    git:
+      branch: main
     workspace:
       host: https://8259561386387854.4.gcp.databricks.com
       root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/${bundle.target}

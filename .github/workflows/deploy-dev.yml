@@ -1,22 +1,23 @@
 name: CD - Deploy to Dev
 
+# Deploys the shared resources (databricks.yml top-level `resources:` block)
+# to the dev target — same pipelines/jobs as prod, resolved with dev
+# schema/paths via mode: development. Resource names get a "[dev <user>]"
+# prefix automatically.
+
 on:
   workflow_dispatch: {}   # manual trigger from the GitHub Actions tab
   push:
     branches: [develop]
     paths:
       - 'pipelines/**'
-      - 'resources/**'
       - 'configs/**'
       - 'utils/**'
       - 'databricks.yml'
 
-env:
-  DIM_PIPELINE_ID: e95d48dd-db97-4ea3-8e54-3a88f3279578
-
 jobs:
   deploy:
-    name: Deploy & Run Dim Pipeline (Dev)
+    name: Deploy & Run ETL Pipeline Job (Dev)
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -37,29 +38,8 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
-      # ── Stop active dim pipeline run before triggering a new one ──
-      - name: Stop active dim pipeline update (if running)
-        run: |
-          STATE=$(databricks pipelines get $DIM_PIPELINE_ID --output json | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-          echo "dim_pipeline state: $STATE"
-          if [ "$STATE" = "RUNNING" ]; then
-            echo "Stopping active dim pipeline update..."
-            databricks pipelines stop $DIM_PIPELINE_ID
-            echo "Waiting for dim pipeline to become IDLE..."
-            for i in $(seq 1 30); do
-              sleep 10
-              STATE=$(databricks pipelines get $DIM_PIPELINE_ID --output json | python3 -c "import sys,json; print(json.load(sys.stdin).get('state',''))")
-              echo "  state: $STATE"
-              if [ "$STATE" = "IDLE" ]; then break; fi
-            done
-          fi
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
-      # ── Run dim pipeline (dims must be up to date before fact jobs run) ──
-      - name: Run dim pipeline
-        run: databricks bundle run dim_pipeline --target dev
+      - name: Run etl_pipeline_job
+        run: databricks bundle run etl_pipeline_job --target dev
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

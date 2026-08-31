@@ -1,6 +1,14 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
+import argparse
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--repo-root")
+_parser.add_argument("--pipeline-catalog")
+_parser.add_argument("--pipeline-schema")
+_args, _ = _parser.parse_known_args()
+_repo_root = _args.repo_root or os.getcwd()
+sys.path.insert(0, _repo_root)
 
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
@@ -10,8 +18,8 @@ from utils.hashing import make_row_hash
 from utils.init_load import initial_load
 
 
-CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
-SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
+CATALOG       = _args.pipeline_catalog or os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = _args.pipeline_schema  or os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_sales_order_header"
 SOURCE_LINES_TABLE   = f"{CATALOG}.{SCHEMA}.fact_sales_order_lines"
 LABEL = "Sales Orders"
@@ -26,17 +34,6 @@ _LINES_HASH_COLS = [ "warehouse","is_cancellation","quantity","quantity_returned
                     "unit_purchase_price","unit_purchase_price2","unit_purchase_price_net","discount_pct","discount_pct2",
                     "doc_discount_pct","tax_rate_id","currency_code","exchange_rate","exchange_unit","dw_created_date"]
 
-try:
-    decision = spark.sql(f"""Select decision 
-                             From {CATALOG}.{SCHEMA}.etl_run_decision
-                             Where label = '{LABEL}'
-                             Limit 1
-                        """).first()
-    if decision and decision["decision"] == "SKIP":
-        print("[SKIP] etl_run_decision = SKIP  exiting.")
-        dbutils.notebook.exit("SKIP")
-except Exception as e:
-    print(f"[INFO] etl_run_decision not available ({e}) proceeding as RUN.")
 
 dateControl = spark.sql(f""" SELECT date_control FROM {CATALOG}.{SCHEMA}.etl_fact_pipeline_config WHERE table_name  = 'fact_sales_order_header'
           AND column_name = 'transaction_date'

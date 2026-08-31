@@ -1,6 +1,14 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
+import argparse
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--repo-root")
+_parser.add_argument("--pipeline-catalog")
+_parser.add_argument("--pipeline-schema")
+_args, _ = _parser.parse_known_args()
+_repo_root = _args.repo_root or os.getcwd()
+sys.path.insert(0, _repo_root)
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, coalesce, lit, trim, when
 from delta.tables import DeltaTable
@@ -8,8 +16,8 @@ from utils.hashing import make_row_hash
 from datetime import datetime, timezone
 from utils.init_load import initial_load
 
-CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
-SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
+CATALOG       = _args.pipeline_catalog or os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = _args.pipeline_schema  or os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_product_prices"
 LABEL = "Product Prices"
@@ -19,17 +27,6 @@ _HEADER_CLUSTER_COLS = ["sk_product_id","price_id","price_label"]
 _HEADER_HASH_COLS = ["currency","price_group_desc","is_gross_calc","min_gross_profit_pct","max_discount_pct","price_net","price_gross","calc_pct","allow_zero_price","price_min_max_gross","price_min","price_max","tier_price_net_1","tier_price_gross_1","tier_price_net_2","tier_price_gross_2","tier_price_net_3","tier_price_gross_3","tier_price_net_4","tier_price_gross_4","tier_price_net_5","tier_price_gross_5","tier_price_net_6","tier_price_gross_6","tier_price_net_7","tier_price_gross_7","tier_price_net_8","tier_price_gross_8","tier_price_net_9","tier_price_gross_9","tier_price_net_10","tier_price_gross_10",
 "recommended_price","no_rounding","component_price_min","component_price_max","cost_procurement","cost_procurement_is_pct","cost_handling","cost_handling_is_pct","cost_testing","cost_testing_is_pct","cost_overhead","cost_overhead_is_pct","formula_type","formula_x","formula_y","shipping_cost_type","shipping_cost_amt","gema_type","gema_value","warranty_calc_item","tier_qty_1","tier_qty_2","tier_qty_3","tier_qty_4","tier_qty_5","tier_qty_6","tier_qty_7","tier_qty_8","tier_qty_9","tier_qty_10","updated_at","dw_created_date"]
 
-try:
-    decision = spark.sql(f"""Select decision 
-                             From {CATALOG}.{SCHEMA}.etl_run_decision
-                             Where label = '{LABEL}'
-                             Limit 1
-                        """).first()
-    if decision and decision["decision"] == "SKIP":
-        print("[SKIP] etl_run_decision = SKIP  exiting.")
-        dbutils.notebook.exit("SKIP")
-except Exception as e:
-    print(f"[INFO] etl_run_decision not available ({e}) proceeding as RUN.")
 
 
 
@@ -133,7 +130,7 @@ df = (
             F.col("w.awvkstaf8")                                    .alias("tier_qty_8"),
             F.col("w.awvkstaf9")                                    .alias("tier_qty_9"),
             F.col("w.awvkstaf10")                                   .alias("tier_qty_10"),
-            F.col("p.updtime").alias("updated_at")
+            F.col("p.updtime").cast("timestamp").alias("updated_at")
         )        
     )
 
