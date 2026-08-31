@@ -150,6 +150,10 @@ resources:
     etl_pipeline_job:
       name: "etl_pipeline_job"
       max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: "0 0/10 8-23 * * ?"
+        timezone_id: "Asia/Ho_Chi_Minh"
+        pause_status: UNPAUSED
       environments:
         - environment_key: Default
           spec:
