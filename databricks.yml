@@ -150,10 +150,6 @@ resources:
     etl_pipeline_job:
       name: "etl_pipeline_job"
       max_concurrent_runs: 1
-      schedule:
-        quartz_cron_expression: "0 0/10 8-23 * * ?"
-        timezone_id: "Asia/Ho_Chi_Minh"
-        pause_status: UNPAUSED
       environments:
         - environment_key: Default
           spec:
@@ -232,3 +228,12 @@ targets:
       root_path: /Workspace/Users/hau.nguyen@kosatec.vn/.bundle/${bundle.name}/${bundle.target}
     variables:
       pipeline_schema: mention_dw
+    # Schedule only applies in prod — dev has no schedule at all and is
+    # triggered manually (databricks bundle run etl_pipeline_job --target dev).
+    resources:
+      jobs:
+        etl_pipeline_job:
+          schedule:
+            quartz_cron_expression: "0 0/10 8-23 * * ?"
+            timezone_id: "Asia/Ho_Chi_Minh"
+            pause_status: UNPAUSED

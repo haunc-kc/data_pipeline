@@ -252,7 +252,8 @@ _HEADER_SET_COLS = (["sk_customer_id", "sk_salesperson_id"]  + _HEADER_HASH_COLS
 try:
     DeltaTable.forName(spark, SOURCE_HEADER_TABLE).alias("t").merge(
         header_df.alias("s"),
-        ("t.nk_document_id = s.nk_document_id "
+        ("t.document_creation_date >= {dateControl}"
+        "And t.nk_document_id = s.nk_document_id "
         " And t.nk_document_no = s.nk_document_no "
         " And t.sk_customer_id = s.sk_customer_id"
         " And t.sk_salesperson_id = s.sk_salesperson_id"
