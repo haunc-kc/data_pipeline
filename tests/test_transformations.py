@@ -132,10 +132,9 @@ class TestBundleConfig:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestPipelineResources:
-    """Test pipeline resources defined under targets.prod.resources in databricks.yml.
-
-    Pipeline/job resources are only defined for the prod target — dev is
-    code-sync only, and dev pipelines/jobs are created manually in the UI.
+    """Test pipeline resources defined ONCE at the top-level `resources:`
+    block in databricks.yml, shared by both dev and prod targets (no
+    per-target duplication — avoids copy/paste drift between environments).
     """
 
     @pytest.fixture
@@ -147,16 +146,25 @@ class TestPipelineResources:
 
     @pytest.fixture
     def pipeline_config(self, bundle_config):
-        return bundle_config["targets"]["prod"]
+        return bundle_config
 
     def test_pipeline_resource_exists(self, pipeline_config):
         assert "resources" in pipeline_config
         assert "pipelines" in pipeline_config["resources"]
 
-    def test_dev_has_no_resources(self, bundle_config):
-        dev_target = bundle_config["targets"]["dev"]
-        assert "resources" not in dev_target, \
-            "dev target must not define pipeline/job resources (created manually in UI)"
+    def test_resources_not_duplicated_per_target(self, bundle_config):
+        """Resources must be defined once at top level, not copy/pasted into
+        each target — this is exactly the drift/typo bug class we hit
+        before (e.g. infrom_be.py typo, missing depends_on)."""
+        for target_name, target in bundle_config["targets"].items():
+            assert "resources" not in target, \
+                f"targets.{target_name} must not define its own 'resources' — " \
+                "use the shared top-level resources: block instead"
+
+    def test_dim_pipeline_uses_schema_variable(self, bundle_config):
+        dim_pipeline = bundle_config["resources"]["pipelines"]["dim_pipeline"]
+        assert dim_pipeline["schema"] == "${var.pipeline_schema}", \
+            "dim_pipeline must use the pipeline_schema variable, not a hardcoded schema"
 
     def test_catalog_is_workspace(self, pipeline_config):
         pipelines = pipeline_config["resources"]["pipelines"]
@@ -259,3 +267,56 @@ class TestJobScripts:
         for fpath in job_files:
             with tempfile.TemporaryDirectory() as tmpdir:
                 py_compile.compile(fpath, cfile=os.path.join(tmpdir, "out.pyc"), doraise=True)
+
+    def test_all_jobs_accept_pipeline_schema_arg(self, job_files):
+        """Every job file must accept --pipeline-schema via argparse.
+
+        Serverless spark_python_task does NOT support environment variables
+        (only 'parameters' / CLI args), so os.getenv("PIPELINE_SCHEMA", ...)
+        alone silently falls back to its default ("mention_dw" = PROD) when
+        run as a job task. CLI args must take priority over the env var.
+        """
+        for fpath in job_files:
+            with open(fpath) as f:
+                content = f.read()
+            assert '"--pipeline-schema"' in content, \
+                f"{os.path.basename(fpath)}: missing --pipeline-schema argparse argument " \
+                "— job tasks default to PROD schema without it"
+            assert "_args.pipeline_schema" in content, \
+                f"{os.path.basename(fpath)}: --pipeline-schema arg must be used " \
+                "(_args.pipeline_schema) ahead of os.getenv fallback"
+
+    def test_all_jobs_accept_pipeline_catalog_arg(self, job_files):
+        """Every job file must accept --pipeline-catalog via argparse (see
+        test_all_jobs_accept_pipeline_schema_arg for rationale)."""
+        for fpath in job_files:
+            with open(fpath) as f:
+                content = f.read()
+            assert '"--pipeline-catalog"' in content, \
+                f"{os.path.basename(fpath)}: missing --pipeline-catalog argparse argument"
+            assert "_args.pipeline_catalog" in content, \
+                f"{os.path.basename(fpath)}: --pipeline-catalog arg must be used " \
+                "(_args.pipeline_catalog) ahead of os.getenv fallback"
+
+
+class TestBundleJobParameters:
+    """Ensure databricks.yml actually passes --pipeline-schema/--pipeline-catalog
+    to every facts_job task (bundle-config-side regression guard, complements
+    TestJobScripts which checks the script side)."""
+
+    @pytest.fixture
+    def bundle_config(self):
+        import yaml
+        bundle_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "databricks.yml")
+        with open(bundle_path) as f:
+            return yaml.safe_load(f)
+
+    def test_facts_job_tasks_pass_pipeline_schema(self, bundle_config):
+        facts_job = bundle_config["resources"]["jobs"]["facts_job"]
+        for task in facts_job["tasks"]:
+            params = task.get("spark_python_task", {}).get("parameters", [])
+            assert "--pipeline-schema" in params, \
+                f"{task['task_key']}: databricks.yml must pass --pipeline-schema " \
+                "or this task silently writes to PROD schema"
+            assert "--pipeline-catalog" in params, \
+                f"{task['task_key']}: databricks.yml must pass --pipeline-catalog"

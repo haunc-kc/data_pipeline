@@ -4,6 +4,8 @@ import argparse
 
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--repo-root")
+_parser.add_argument("--pipeline-catalog")
+_parser.add_argument("--pipeline-schema")
 _args, _ = _parser.parse_known_args()
 _repo_root = _args.repo_root or os.getcwd()
 sys.path.insert(0, _repo_root)
@@ -16,8 +18,8 @@ from utils.hashing import make_row_hash
 from utils.init_load import initial_load
 
 
-CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
-SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
+CATALOG       = _args.pipeline_catalog or os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = _args.pipeline_schema  or os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_sales_order_header"
 SOURCE_LINES_TABLE   = f"{CATALOG}.{SCHEMA}.fact_sales_order_lines"
 LABEL = "Sales Orders"

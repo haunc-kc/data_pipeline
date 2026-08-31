@@ -4,6 +4,8 @@ import argparse
 
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--repo-root")
+_parser.add_argument("--pipeline-catalog")
+_parser.add_argument("--pipeline-schema")
 _args, _ = _parser.parse_known_args()
 _repo_root = _args.repo_root or os.getcwd()
 sys.path.insert(0, _repo_root)
@@ -14,8 +16,8 @@ from utils.hashing import make_row_hash
 from datetime import datetime, timezone
 from utils.init_load import initial_load
 
-CATALOG       = os.getenv("PIPELINE_CATALOG", "workspace")
-SCHEMA        = os.getenv("PIPELINE_SCHEMA",  "mention_dw")
+CATALOG       = _args.pipeline_catalog or os.getenv("PIPELINE_CATALOG", "workspace")
+SCHEMA        = _args.pipeline_schema  or os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 
 SOURCE_HEADER_TABLE  = f"{CATALOG}.{SCHEMA}.fact_product_prices"
 LABEL = "Product Prices"
@@ -128,7 +130,7 @@ df = (
             F.col("w.awvkstaf8")                                    .alias("tier_qty_8"),
             F.col("w.awvkstaf9")                                    .alias("tier_qty_9"),
             F.col("w.awvkstaf10")                                   .alias("tier_qty_10"),
-            F.col("p.updtime").alias("updated_at")
+            F.col("p.updtime").cast("timestamp").alias("updated_at")
         )        
     )
 
