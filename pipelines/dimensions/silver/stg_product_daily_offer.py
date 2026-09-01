@@ -11,7 +11,7 @@ def stg_daily_offer():
         .select(
            
             trim(col("ID"))                                     .alias("nk_offer_id"),
-            col("ItemNr")                                       .alias("nk_product_id"),    
+            col("ItemNr")                                       .alias("product_number"),    
             col("CreatedBy")                                    .alias("nk_created_by"),    
             col("From")     .cast("date")                       .alias("valid_from"),
             col("To")       .cast("date")                       .alias("valid_to"),

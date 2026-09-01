@@ -17,7 +17,7 @@ def dim_product_daily_offer():
 
     dim_product = (
         spark.read.table("dim_product")
-        .select("sk_product_id", "nk_product_id", "__START_AT", "__END_AT")
+        .select("sk_product_id", "product_number", "__START_AT", "__END_AT")
     ).alias("prd")
 
     dim_salesperson = (
@@ -29,7 +29,7 @@ def dim_product_daily_offer():
     df = stg.join(
         dim_product,
         on=(
-            (col("stg.nk_product_id") == col("prd.nk_product_id")) &
+            (col("stg.product_number") == col("prd.product_number")) &
             (col("stg.valid_from") >= col("prd.__START_AT")) &
             (col("stg.valid_from") <  coalesce(col("prd.__END_AT"), lit("2099-12-31").cast("date")))
         ),
@@ -52,7 +52,7 @@ def dim_product_daily_offer():
         col("prd.sk_product_id"),
         col("s.sk_salesperson_id"),
         col("stg.nk_offer_id"),
-        col("stg.nk_product_id"),
+        col("stg.product_number"),
         col("stg.nk_created_by"),
 
         col("stg.valid_from"),
