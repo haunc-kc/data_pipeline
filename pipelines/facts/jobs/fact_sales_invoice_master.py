@@ -265,7 +265,7 @@ try:
     print("[DONE] fact_sales_invoice_header MERGE completed.")
 except Exception as e:
     print(e)
-    initial_load(header_df, SOURCE_HEADER_TABLE, _HEADER_CLUSTER_COLS)
+    # initial_load(header_df, SOURCE_HEADER_TABLE, _HEADER_CLUSTER_COLS)
 
 
 print("[INFO] Merging fact_sales_invoice_lines ...")
@@ -301,7 +301,8 @@ lines_df = (
         col("m.nk_document_id"),
         col("m.nk_document_no"),
         col("m.position_seq_no"),
-        
+        col("m.invoice_date"),
+
         col("prd.sk_product_id"),
         
         col("m.warehouse"),
@@ -337,7 +338,8 @@ _LINES_SET_COLS = _LINES_HASH_COLS + ["row_hash", "dw_updated_date"]
 try:
     DeltaTable.forName(spark, SOURCE_LINES_TABLE).alias("t").merge(
         lines_df.alias("s"),
-        ("t.nk_document_id = s.nk_document_id "
+        (
+         "  t.nk_document_id = s.nk_document_id "
          " And t.nk_document_no = s.nk_document_no "
          " And t.position_seq_no = s.position_seq_no "
          " And t.sk_product_id = s.sk_product_id")

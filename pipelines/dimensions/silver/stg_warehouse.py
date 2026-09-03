@@ -10,7 +10,7 @@ def build_stg_warehouse():
     df = spark.read.table(SOURE_TABLE).where(col("MLMANKEY") == 1).select(
                              F.regexp_replace(
                             F.md5(F.concat_ws("||"      
-                                ,F.col("MLLAGER")
+                                ,F.col("MLIDNR")
                                 ,F.col("MLLAGER")
                                 ,F.col("MLEKPREIS")
                                 ,F.col("MLEKPREP")
