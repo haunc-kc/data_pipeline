@@ -255,8 +255,8 @@ try:
         (f"t.document_creation_date >= '{dateControl}' "
         "And t.nk_document_id = s.nk_document_id "
         " And t.nk_document_no = s.nk_document_no "
-        " And t.sk_customer_id = s.sk_customer_id"
-        " And t.sk_salesperson_id = s.sk_salesperson_id"
+        # " And t.sk_customer_id = s.sk_customer_id"
+        # " And t.sk_salesperson_id = s.sk_salesperson_id"
         " And t.document_creation_date = s.document_creation_date")
     ).whenMatchedUpdate(
         condition="t.row_hash != s.row_hash",         
