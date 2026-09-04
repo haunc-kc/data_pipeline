@@ -47,14 +47,18 @@ rechkp_df = (
 
 rechk2p_df = (spark.read.table("`bigquery-udp_catalog`.`mention_data`.rechk2p")
                 .withColumn("k2pfrei1", F.lower(trim(col("k2pfrei1"))))
-                .dropDuplicates(["k2pbelid", "k2pfrei1"])
                 .alias("p2")
 )
 
 master_df = (
     rechkk_df
     .join(rechkp_df,  col("h.bsbelid") == col("p.bpbelid"),   "left")
-    .join(rechk2p_df, col("h.bsbelid") == col("p2.k2pbelid"), "left")
+    .join(
+        rechk2p_df,
+        (col("h.bsbelid") == col("p2.k2pbelid"))
+        & (col("p2.k2pposnr") == col("p.BPPOSNR")),
+        "left",
+    )
     .select(
         col("h.bsbelid").alias("nk_document_id"),
         col("h.bsbelnr").alias("nk_document_no"),
@@ -73,6 +77,8 @@ master_df = (
         F.lower(col("h.bsbelkz").cast("string")).alias("reference_document_indicator"),
         col("h.bssammstat").cast("string").alias("collection_status_code"),
         col("h.bsstatkz").alias("document_status"),
+        col("h.bsukurs").alias("exchange_rate"),
+        
         when(col("h.bsonline") == True, True).otherwise(False).alias("is_online"),
         when(col("h.bsbeltyp") == "G",  True).otherwise(False).alias("is_credit_note"),
         col("h.bsvkpreis").alias("header_net_total"),
@@ -113,15 +119,16 @@ master_df = (
         col("p.bprabproz").alias("doc_discount_pct"),
         col("p.bpmwst").alias("tax_rate_id"),
         col("p.bpwaehrung").alias("currency_code"),
-        col("p.bpukurs").alias("exchange_rate"),
+        col("p.bpukurs").alias("exchange_rate_lines"),
         col("p.bpueinh").alias("exchange_unit"),
         (col("p.bpstueck") * col("p.bpvkpreis")).alias("line_net_amount"),
         (col("p.bpstueck") * col("p.bpvkbrutt")).alias("line_gross_amount"),
         (col("p.bpstueck") * col("p.bpekpreis")).alias("line_purchase_amount"),
-        when(
-            F.lower(F.coalesce(col("p2.k2pfrei1"), lit(""))).isin("smartstock", "all-lager"),
-            "Smart Stock"
-        ).otherwise("Direct Business / Warehouse").alias("business_channel"),
+        # when(
+        #     F.lower(F.coalesce(col("p2.k2pfrei1"), lit(""))).isin("smartstock", "all-lager"),
+        #     "Smart Stock"
+        # ).otherwise("Direct Business / Warehouse").alias("business_channel"),
+        col("p2.k2pfrei1").alias("business_channel")
     )
 )
 
@@ -184,14 +191,14 @@ _HEADER_HASH_COLS = [
                         # Document attributes
                         "document_type_code", "document_category_code",
                         "reference_document_indicator", "collection_status_code", "document_status",
-                        "is_online", "is_credit_note",
+                        "is_online", "is_credit_note","exchange_rate",
                         # Header amounts
                         "header_net_total", "header_gross_total", "header_vat_total", "header_shipping_cost",
-                        # Payment \u2014 most likely to change after invoice created
+                        
                         "amount_paid", "due_date", "payment_date", "is_open", "days_to_pay",
-                        # Computed
+                        
                         "project_code", "revenue", "purchase_amount", "cost_amount",
-                        "shipping_amount", "business_channel"
+                        "shipping_amount"
 ]
 
 header_df = (
@@ -227,6 +234,7 @@ header_df = (
         col("m.document_status"),
         col("m.is_online"),
         col("m.is_credit_note"),
+        col("m.exchange_rate"),
         col("m.header_net_total"),
         col("m.header_gross_total"),
         col("m.header_vat_total"),
@@ -241,7 +249,7 @@ header_df = (
         col("m.purchase_amount"),
         col("m.cost_amount"),
         col("m.shipping_amount"),
-        col("m.business_channel"),
+        # col("m.business_channel"),
         F.current_timestamp().alias("dw_updated_date"),
     ).withColumn("row_hash", make_row_hash(_HEADER_HASH_COLS))
 ).dropDuplicates(_HEADER_CLUSTER_COLS)
@@ -265,7 +273,7 @@ try:
     print("[DONE] fact_sales_invoice_header MERGE completed.")
 except Exception as e:
     print(e)
-    # initial_load(header_df, SOURCE_HEADER_TABLE, _HEADER_CLUSTER_COLS)
+    initial_load(header_df, SOURCE_HEADER_TABLE, _HEADER_CLUSTER_COLS)
 
 
 print("[INFO] Merging fact_sales_invoice_lines ...")
@@ -280,11 +288,11 @@ _LINES_HASH_COLS = [
     # Discounts
     "discount_pct", "discount_pct2", "doc_discount_pct",
     # Tax & currency
-    "tax_rate_id", "currency_code", "exchange_rate", "exchange_unit",
+    "tax_rate_id", "currency_code", "exchange_rate_lines", "exchange_unit",
     # Computed line amounts
     "line_net_amount", "line_gross_amount", "line_purchase_amount",
     # Status
-    "is_cancellation", "pos_mankey",
+    "is_cancellation", "pos_mankey","business_channel"
 ]
 
 lines_df = (
@@ -320,12 +328,12 @@ lines_df = (
         col("m.doc_discount_pct"),
         col("m.tax_rate_id"),
         col("m.currency_code"),
-        col("m.exchange_rate"),
+        col("m.exchange_rate_lines"),
         col("m.exchange_unit"),
         col("m.line_net_amount"),
         col("m.line_gross_amount"),
         col("m.line_purchase_amount"),
-        
+        col("m.business_channel"),
         F.current_timestamp().alias("dw_updated_date"),
     )
 ).dropDuplicates(_LINES_CLUSTER_COLS)

@@ -20,7 +20,6 @@ def build_stg_warehouse():
                             r"(.{8})(.{4})(.{4})(.{4})(.{12})",
                             r"$1-$2-$3-$4-$5"
                             ).alias("sk_warehouse_id"),
-                            
                             F.col("MLIDNR").alias("nk_warehouse_id")
                             ,F.col("MLLAGER").alias("warehouse_name"),
                             F.col("MLEKPREIS").alias("purchase_price_avg"),
