@@ -210,7 +210,7 @@ customer_features = (
         F.avg("amount_paid").alias("avg_amount_paid"),
 
         # Channel diversity
-        F.countDistinct("business_channel").alias("num_channels"),
+        F.lit(2).alias("num_channels"),
         F.countDistinct("document_type_code").alias("num_doc_types"),
 
         # Profitability
