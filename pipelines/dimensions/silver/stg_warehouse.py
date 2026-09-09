@@ -82,7 +82,7 @@ def build_stg_warehouse():
                             F.col("mlfrei8").alias("free_field_8"),
                             F.col("mlfrei9").alias("free_field_9"),
                             F.col("mlfrei10").alias("free_field_10"),
-                            F.col("updtime").cast("string").alias("updated_at"),
+                            F.col("updtime").cast("timestamp").alias("updated_at"),
                             F.col("MLLETZTBEW").alias("movement_date"),
     )
     return df.dropDuplicates(['nk_warehouse_id'])
