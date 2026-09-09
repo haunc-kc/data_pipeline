@@ -2,7 +2,10 @@ from pyspark.sql import functions as F
 from pyspark import pipelines as dp
 from pyspark.sql.functions import col
 
-@dp.materialized_view(name="stg_customer")
+@dp.materialized_view(
+    name="stg_customer",
+    table_properties={"delta.feature.timestampNtz": "supported"}
+)
 def build_stg_customer():
     """
     Joins kunden + adressen and prepares customer dimension attributes.

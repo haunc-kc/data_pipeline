@@ -5,7 +5,10 @@ from pyspark.sql.functions import col
 
 SOURE_TABLE = "`bigquery-udp_catalog`.`mention_data`.`aellager`"
 
-@dp.materialized_view(name="stg_warehouse")
+@dp.materialized_view(
+    name="stg_warehouse",
+    table_properties={"delta.feature.timestampNtz": "supported"}
+)
 def build_stg_warehouse():
     df = spark.read.table(SOURE_TABLE).where(col("MLMANKEY") == 1).select(
                              F.regexp_replace(

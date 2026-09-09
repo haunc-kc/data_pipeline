@@ -2,7 +2,10 @@ from pyspark.sql import functions as F
 from pyspark import pipelines as dp
 
 
-@dp.materialized_view(name="stg_supplier")
+@dp.materialized_view(
+    name="stg_supplier",
+    table_properties={"delta.feature.timestampNtz": "supported"}
+)
 def build_stg_supplier():
     lieft_df = spark.read.table("`bigquery-udp_catalog`.`mention_data`.lief")
     address_df = spark.read.table("`bigquery-udp_catalog`.`mention_data`.adressen")

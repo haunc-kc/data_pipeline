@@ -3,7 +3,8 @@ from pyspark import pipelines as dp
 dp.create_streaming_table(
     name="dim_customer",
     cluster_by=["nk_customer_id"],
-    comment="Customer dimension with SCD Type-2 history, auto-managed by DLT"
+    comment="Customer dimension with SCD Type-2 history, auto-managed by DLT",
+    table_properties={"delta.feature.timestampNtz": "supported"}
 )
 
 dp.create_auto_cdc_from_snapshot_flow(

@@ -10,6 +10,12 @@ venv/
 .coverage
 .DS_Store
 .env
+docs/
 *.pem
 *.key
 *.sql
+settings.json
+Untitled.csv
+pyproject.toml
+uv.lock
+

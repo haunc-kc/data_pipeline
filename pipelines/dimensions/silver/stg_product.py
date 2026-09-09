@@ -74,7 +74,7 @@ def stg_product():
             F.when(F.coalesce(a["arsernr"], F.lit(0)) > 0, True).otherwise(False).alias("has_serial_number"),
             F.coalesce(a["arnuronline"], F.lit(False)).alias("online_only"),
             F.coalesce(a["arkeinprov"], F.lit(False)).alias("no_commission"),
-
+            a["areingabe"].cast("date").alias("input_date"),
             F.coalesce(a["areingabe"], a["updtime"], F.lit("2000-01-01")).alias("created_date"),
         )
        
