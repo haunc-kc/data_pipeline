@@ -29,7 +29,7 @@ def stg_salesperson():
         F.trim(F.coalesce(F.col("kobfunk"), F.lit(""))).alias("department"),
         F.trim(F.coalesce(F.col("kobfil"), F.lit(""))).alias("branch_code"),
         # Inverted flag logic: kobarchiv = 1 means True, otherwise False
-        F.when(F.col("kobarchiv") == 1, True)
+        F.when(F.col("kobarchiv") == 0, True)
         .otherwise(False)
         .alias("is_active"),
         F.coalesce(F.col("kobminroh"), F.lit(0)).alias("min_gross_profit"),
