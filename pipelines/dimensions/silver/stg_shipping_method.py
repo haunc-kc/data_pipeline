@@ -27,6 +27,6 @@ def stg_shipping_method():
             F.col("KOVPGFFID").alias("external_interface_id"),
             F.col("KOVPGCODE").alias("external_process_code"),
             F.col("KOVPGPOID").alias("external_position_id"),
-            F.col("UPDTIME").alias("updated_at")
+            F.col("UPDTIME").cast("timestamp").alias("updated_at")
         )
     )
