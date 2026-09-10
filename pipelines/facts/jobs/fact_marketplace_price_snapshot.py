@@ -10,7 +10,6 @@ _args, _ = _parser.parse_known_args()
 _repo_root = _args.repo_root or os.getcwd()
 sys.path.insert(0, _repo_root)
 from pyspark.sql import functions as F
-from delta.tables import DeltaTable
 from utils.init_load import initial_load
 from utils.itscope_schema import ITSCOPE_PRODUCT_SCHEMA
 
@@ -18,10 +17,15 @@ CATALOG = _args.pipeline_catalog or os.getenv("PIPELINE_CATALOG", "workspace")
 SCHEMA  = _args.pipeline_schema  or os.getenv("PIPELINE_SCHEMA",  "mention_dw")
 
 TARGET_TABLE = f"{CATALOG}.{SCHEMA}.fact_marketplace_price_snapshot"
-LABEL = "Marketplace Price/Stock Snapshot (itscope)"
+LABEL = "Marketplace Competitor Offer Snapshot (itscope)"
 
 # Append-only periodic snapshot fact - every crawl is a new observation,
 # we NEVER merge/dedup price or stock history here.
+#
+# NOTE: the top-level "primary" offer (price/stock/rank/aggregated fields)
+# now lives as current-state columns on dim_product_marketplace instead of
+# being duplicated here - this fact only carries per-competitor-offer
+# history from the `supplierItems` array.
 _CLUSTER_COLS = ["puid", "fetched_at"]
 
 dateControl = spark.sql(f"""
@@ -43,64 +47,15 @@ bronze = (
     .where(F.col("j.puid").isNotNull())
 )
 
-_PRODUCT_LEVEL_COLS = [
+df = bronze.select(
     F.col("fetched_at"),
     F.col("source"),
     F.col("j.puid").alias("puid"),
-    F.col("j.aggregatedStatus").alias("aggregated_status"),
-    F.col("j.aggregatedStatusText").alias("aggregated_status_text"),
-    F.col("j.aggregatedStock").alias("aggregated_stock"),
-    F.col("j.aggregatedSupplierItems").alias("aggregated_supplier_items"),
-    F.col("j.rank").alias("rank"),
-    F.col("j.qualification").alias("qualification"),
-]
-
-# --- primary offer row (top-level price/stock fields, treated as one offer) ---
-primary_offer = bronze.select(
-    *_PRODUCT_LEVEL_COLS,
-    F.lit(True).alias("is_primary_offer"),
-    F.col("j.priceSupplierItemId").alias("supplier_item_id"),
-    F.col("j.ean").alias("ean"),
-    F.col("j.manufacturerSKU").alias("manufacturer_sku"),
-    F.col("j.priceSupplierSKU").alias("supplier_sku"),
-    F.col("j.priceSupplierId").alias("supplier_id"),
-    F.col("j.priceSupplierName").alias("supplier_name"),
-    F.col("j.manufacturerName").alias("offer_manufacturer_name"),
-    F.col("j.productName").alias("offer_product_name"),
-    F.col("j.longDescription").alias("offer_long_description"),
-    F.lit(None).cast("long").alias("condition_id"),
-    F.lit(None).cast("string").alias("condition_name"),
-    F.lit(None).cast("boolean").alias("eol_product"),
-    F.lit(None).cast("long").alias("match_quality"),
-    F.lit(None).cast("boolean").alias("ean_valid"),
-    F.lit(None).cast("boolean").alias("special_offer"),
-    F.col("j.price").alias("price"),
-    F.col("j.priceCalc").alias("price_calc"),
-    F.col("j.currencyCode").alias("currency_code"),
-    F.col("j.priceCalcVat").alias("price_calc_vat"),
-    F.col("j.priceLastUpdate").cast("timestamp").alias("price_last_update"),
-    F.col("j.stockSupplierText").alias("stock_supplier_text"),
-    F.col("j.stockStatus").alias("stock_status"),
-    F.col("j.stockStatusText").alias("stock_status_text"),
-    F.col("j.stock").alias("stock"),
-    F.lit(None).cast("long").alias("external_stock"),
-    F.lit(None).cast("timestamp").alias("stock_availability_date"),
-    F.col("j.stockLastUpdate").cast("timestamp").alias("last_stock_update"),
-    F.col("j.contractTypeId").alias("contract_type_id"),
-    F.col("j.contractTypeName").alias("contract_type_name"),
-    F.lit(None).cast("double").alias("gross_dim_x"),
-    F.lit(None).cast("double").alias("gross_dim_y"),
-    F.lit(None).cast("double").alias("gross_dim_z"),
-    F.col("j.recommendedRetailPriceNet").alias("recommended_retail_price_net"),
-)
-
-# --- exploded supplier offers ---
-exploded = bronze.select(
-    *_PRODUCT_LEVEL_COLS,
     F.explode("j.supplierItems").alias("o"),
 ).select(
-    *_PRODUCT_LEVEL_COLS,
-    F.lit(False).alias("is_primary_offer"),
+    F.col("fetched_at"),
+    F.col("source"),
+    F.col("puid"),
     F.col("o.id").alias("supplier_item_id"),
     F.col("o.ean").alias("ean"),
     F.col("o.manufacturerSKU").alias("manufacturer_sku"),
@@ -134,11 +89,7 @@ exploded = bronze.select(
     F.col("o.grossDimY").alias("gross_dim_y"),
     F.col("o.grossDimZ").alias("gross_dim_z"),
     F.col("o.recommendedRetailPriceNet").alias("recommended_retail_price_net"),
-)
-
-df = primary_offer.unionByName(exploded).withColumn(
-    "dw_created_date", F.current_timestamp()
-)
+).withColumn("dw_created_date", F.current_timestamp())
 
 # --- link own listings (KOSATEC offers) back to internal dim_product ---
 # is_own_listing flags any offer from your own company regardless of match
