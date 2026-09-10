@@ -144,6 +144,48 @@ resources:
           spec:
             environment_version: "5"
 
+    # Marketplace price/stock intelligence (itscope crawl data). Separate
+    # domain/cadence from the internal ERP facts_job. dim_product_marketplace
+    # runs first (SCD1 upsert), then fact_marketplace_price_snapshot
+    # (append-only periodic snapshot) which also needs the dim in place.
+    marketplace_job:
+      name: "marketplace_job"
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: dim_product_marketplace
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/dim_product_marketplace.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+
+        - task_key: fact_marketplace_price_snapshot
+          depends_on:
+            - task_key: dim_product_marketplace
+          spark_python_task:
+            python_file: ${workspace.file_path}/pipelines/facts/jobs/fact_marketplace_price_snapshot.py
+            parameters:
+              [
+                "--repo-root",
+                "${workspace.file_path}",
+                "--pipeline-catalog",
+                "workspace",
+                "--pipeline-schema",
+                "${var.pipeline_schema}",
+              ]
+          environment_key: Default
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "5"
+
     # Orchestrator: refreshes dimensions, runs facts, then runs ML scoring.
     # ML scoring (churn_risk_predict) runs as a task directly in this job
     # rather than as a separate job resource.
@@ -163,9 +205,14 @@ resources:
           run_job_task:
             job_id: ${resources.jobs.facts_job.id}
 
+        - task_key: marketplace_job
+          run_job_task:
+            job_id: ${resources.jobs.marketplace_job.id}
+
         - task_key: etl_control
           depends_on:
             - task_key: facts_job
+            - task_key: marketplace_job
           spark_python_task:
             python_file: ${workspace.file_path}/pipelines/etl_control/update_etl_control.py
             parameters:
