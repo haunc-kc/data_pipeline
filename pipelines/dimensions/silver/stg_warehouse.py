@@ -23,7 +23,7 @@ def build_stg_warehouse():
                             r"(.{8})(.{4})(.{4})(.{4})(.{12})",
                             r"$1-$2-$3-$4-$5"
                             ).alias("sk_warehouse_id"),
-                            F.col("MLIDNR").alias("nk_warehouse_id")
+                            F.col(" ").alias("nk_warehouse_id")
                             ,F.col("MLLAGER").alias("warehouse_name"),
                             F.col("MLEKPREIS").alias("purchase_price_avg"),
                             F.col("MLEKPREP").alias("purchase_price_repair"),
@@ -88,7 +88,7 @@ def build_stg_warehouse():
                             F.col("updtime").cast("timestamp").alias("updated_at"),
                             F.col("MLLETZTBEW").alias("movement_date"),
     )
-    return df.dropDuplicates(['nk_warehouse_id'])
+    return df.dropDuplicates(['nk_warehouse_id','warehouse_name'])
 
 # @dp.materialized_view(name="_stg_warehouse")
 # def _stg_warehouse():
