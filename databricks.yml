@@ -283,4 +283,4 @@ targets:
           schedule:
             quartz_cron_expression: "0 0/10 8-23 * * ?"
             timezone_id: "Asia/Ho_Chi_Minh"
-            pause_status: PAUSED
+            pause_status: UNPAUSED
