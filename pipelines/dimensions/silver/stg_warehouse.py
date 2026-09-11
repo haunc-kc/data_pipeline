@@ -88,7 +88,7 @@ def build_stg_warehouse():
                             F.col("updtime").cast("timestamp").alias("updated_at"),
                             F.col("MLLETZTBEW").alias("movement_date"),
     )
-    return df.dropDuplicates(['nk_warehouse_id'])
+    return df.dropDuplicates(['nk_warehouse_id','warehouse_name'])
 
 # @dp.materialized_view(name="_stg_warehouse")
 # def _stg_warehouse():
