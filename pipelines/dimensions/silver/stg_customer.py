@@ -17,6 +17,9 @@ def build_stg_customer():
     kka = spark.read.table("`bigquery-udp_catalog`.`mention_data`.`kundenan`").where(col("krakenn") != ' ').dropDuplicates(["kradnummer"])
     ad_df = spark.read.table("`bigquery-udp_catalog`.`mention_data`.`adresspa`")
 
+    dim_shipping = (spark.read.table("dim_shipping_method").where("__END_AT IS NULL").select("sk_shipping_method_id", "nk_shipping_method_id"))
+    dim_payment_term = (spark.read.table("dim_payment_term").where("__END_AT IS NULL").select("sk_payment_term_id","nk_payment_term_id"))
+
     t1 = (
         ad_df.groupBy("PANUMMER")
         .agg(F.max("PALFDNR").alias("PALFDNR"))
@@ -42,7 +45,9 @@ def build_stg_customer():
         .join(kl, kl["lkzlandkz"] == ad["adlandkz"], "left")
         .join(kka, kka["kradnummer"] == ad["adnummer"], 'left')
         .join(ad_df_final, ad_df_final["PANUMMER"] == ad["adnummer"], 'left')
-        
+        .join(dim_shipping, dim_shipping["nk_shipping_method_id"] == kd["kdvart"], 'left')
+        .join(dim_payment_term, dim_payment_term["nk_payment_term_id"] == kd["kdzbkenn"], "left")
+
         .select(
             F.regexp_replace(
                             F.md5(F.concat_ws("||",
@@ -61,6 +66,8 @@ def build_stg_customer():
             
             kd["kdnummer"].alias("nk_customer_id"),
             kd['kdbnummer'].alias("account_manager_id"),
+            dim_shipping["sk_shipping_method_id"],
+            dim_payment_term["sk_payment_term_id"],
             F.trim(F.concat_ws(" ",
                 F.coalesce(ad["adname1"], F.lit("")),
                 F.coalesce(ad["adname2"], F.lit(""))
@@ -87,6 +94,7 @@ def build_stg_customer():
             F.trim(F.coalesce(kd["kdtyp"], F.lit(""))).alias("customer_type"),
             F.when(kd["kdarchiv"] == 0, True).otherwise(False).alias("is_active"),
             F.when(kd["kdliefsp"] > 0, True).otherwise(False).alias("has_delivery_block"),
+            
             F.when(kd["kddsgvo"] > 0, True).otherwise(False).alias("gdpr_blocked"),
             F.trim(F.coalesce(kd["kdwaeh"], F.lit("EUR"))).alias("currency_code"),
             F.coalesce(kd["kdlimit"], F.lit(0)).alias("credit_limit"),
